@@ -19,7 +19,6 @@ import android.support.v4.app.NotificationCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
-import android.text.Editable;
 import android.text.Html;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -31,6 +30,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.ViewGroup;
+import android.webkit.URLUtil;
 import android.widget.Toast;
 
 import org.wordpress.android.Constants;
@@ -632,6 +632,7 @@ public class EditPostActivity extends ActionBarActivity implements EditorFragmen
         if (mediaFile == null) {
             return;
         }
+
         mEditorFragment.appendMediaFile(mediaFile, getMediaUrl(mediaFile), WordPress.imageLoader);
     }
 
@@ -671,6 +672,14 @@ public class EditPostActivity extends ActionBarActivity implements EditorFragmen
             if (spanned != null) {
                 mEditorFragment.setContent(spanned);
             }
+        }
+    }
+
+    private class HandleMediaSelectionTask extends AsyncTask<Intent, Void, Void> {
+        @Override
+        protected Void doInBackground(Intent... params) {
+            handleMediaSelectionResult(params[0]);
+            return null;
         }
     }
 
@@ -989,8 +998,8 @@ public class EditPostActivity extends ActionBarActivity implements EditorFragmen
             mediaFile.setVideo(MediaUtils.isVideo(imageUri.toString()));
         }
         WordPress.wpDB.saveMediaFile(mediaFile);
-
         mEditorFragment.appendMediaFile(mediaFile, mediaFile.getFilePath(), WordPress.imageLoader);
+
         return true;
     }
 
@@ -1004,7 +1013,8 @@ public class EditPostActivity extends ActionBarActivity implements EditorFragmen
             switch (requestCode) {
                 case MediaPickerActivity.ACTIVITY_REQUEST_CODE_MEDIA_SELECTION:
                     if (resultCode == MediaPickerActivity.ACTIVITY_RESULT_CODE_MEDIA_SELECTED) {
-                        handleMediaSelectionResult(data);
+                        new HandleMediaSelectionTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,
+                                data);
                     } else if (resultCode == MediaPickerActivity.ACTIVITY_RESULT_CODE_GALLERY_CREATED) {
                         handleGalleryResult(data);
                     }
@@ -1121,7 +1131,7 @@ public class EditPostActivity extends ActionBarActivity implements EditorFragmen
                         if (MediaUtils.isVideo(sourceString)) {
                             // Videos cannot be added to a gallery, insert inline instead
                             addMedia(source);
-                        } else if (sourceString.contains("wordpress.com")) {
+                        } else if (URLUtil.isNetworkUrl(sourceString)) {
                             blogMediaIds.add(id);
                             AnalyticsTracker.track(Stat.EDITOR_ADDED_PHOTO_VIA_WP_MEDIA_LIBRARY);
                         } else if (MediaUtils.isValidImage(sourceString)) {
@@ -1171,7 +1181,7 @@ public class EditPostActivity extends ActionBarActivity implements EditorFragmen
                 Integer libraryMediaAdded = 0;
 
                 for (MediaItem media : selectedContent) {
-                    if (media.getSource().toString().contains("wordpress.com")) {
+                    if (URLUtil.isNetworkUrl(media.getSource().toString())) {
                         addExistingMediaToEditor(media.getTag());
                         ++libraryMediaAdded;
                     } else {

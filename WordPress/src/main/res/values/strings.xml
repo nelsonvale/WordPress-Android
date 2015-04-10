@@ -426,7 +426,6 @@
     <string name="stats_reblogs">Reblogs</string>
     <string name="stats_comments">Comments</string>
 
-
     <!-- stats: labels for the views -->
     <string name="stats_view_visitors_and_views">Visitors and Views</string>
     <string name="stats_view_countries">Countries</string>
